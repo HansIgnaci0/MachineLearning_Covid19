@@ -1,168 +1,123 @@
-# covid19DF
+Proyecto de Clustering No Supervisado con Pipelines Automatizados
 
-Sistema completo de **Machine Learning** con arquitectura **MLOps** para análisis de datos de COVID-19. Implementa pipelines automatizados de **regresión**, **clasificación** y **agrupamiento**, con optimización de hiperparámetros, orquestación de pipelines y versionamiento de datos.
+Este documento describe un flujo completo de trabajo que incluye: -
+Preprocesamiento de datos - Entrenamiento de modelos no supervisados -
+Generación de visualizaciones - Exportación de resultados - Orquestación
+automática mediante Airflow (sin incluir credenciales)
 
----
+1. Modelos No Supervisados Utilizados
 
-## 📋 Tabla de Contenidos
+Se implementaron tres algoritmos clásicos y fáciles de configurar:
 
-- [Características](#características)
-- [Arquitectura del proyecto](#arquitectura-del-proyecto)
-- [Requisitos](#requisitos)
-- [Instalación](#instalación)
-- [Estructura de carpetas](#estructura-de-carpetas)
-- [Pipelines](#pipelines)
-- [Uso](#uso)
-- [Contribuciones](#contribuciones)
-- [Licencia](#licencia)
+1. K-Means
 
----
+-   Algoritmo particional basado en centroides.
+-   Rápido, simple y eficiente.
+-   Ideal para datos que forman clusters relativamente esféricos.
 
-## 🌟 Características
+2. Gaussian Mixture Models (GMM)
 
-- Automatización de pipelines de Machine Learning con **Kedro**.
-- Pipelines para:
-  - **Regresión**: predicción de variables continuas relacionadas con COVID-19.
-  - **Clasificación**: detección de patrones y categorización de datos.
-  - **Agrupamiento (Clustering)**: análisis de segmentación de datos.
-- Optimización de hiperparámetros con técnicas avanzadas.
-- Orquestación con Apache Airflow (opcional).
-- Versionamiento de datasets y modelos con **DVC**.
-- Contenerización con **Docker** para despliegue reproducible.
+-   Clustering probabilístico.
+-   Permite clusters elípticos.
+-   Produce etiquetas similares a K-Means cuando los datos tienen poca
+    variación estructural.
 
----
+3. Hierarchical Clustering
 
-## 🏗 Arquitectura del proyecto
+-   Construye una estructura jerárquica (dendrograma).
+-   Útil cuando se desea entender relaciones entre puntos.
+-   Configuración sencilla usando AgglomerativeClustering.
 
-El proyecto sigue una estructura basada en **MLOps y pipelines modulares**:
+------------------------------------------------------------------------
 
-DVC_Local_Repo #Configuracion del versionado DVC
+2. CSV con Resultados
 
-│
+El CSV generado automáticamente debe incluir:
 
-covid19df/
+    id, feature_1, feature_2, ..., cluster
 
-│
+Recomendaciones: - Agregar un ID incremental para identificar cada
+fila. - Agregar columnas originales o procesadas antes de clusterizar. -
+El campo cluster mostrará la etiqueta asignada (0,1,2…).
 
-  ├─ airflow/
+------------------------------------------------------------------------
 
-   │ ├─ dags # Ubicacion de ambos dags de airflow
+3. Por Qué los Gráficos Pueden Verse Idénticos
 
-  ├─ data/ # Datasets (raw, processed, etc.)
+Los tres modelos pueden generar visualizaciones muy similares cuando: -
+Los datos tienen solo 1 o 2 clusters claros. - Las variables no muestran
+estructuras complejas. - K-Means, GMM y Hierarchical convergen a las
+mismas separaciones.
 
-  ├─ notebooks/ # Notebooks de análisis exploratorio
+Esto es normal y no significa que esté mal implementado.
 
-  ├─ src/ # Código fuente de pipelines y nodos
+------------------------------------------------------------------------
 
-  │ ├─ pipelines/
+4. Flujo Automático (Pipeline)
 
-  │ ├─ nodes/
+El sistema realiza:
 
-  │ └─ utils/
-  
-  ├─ conf/ # Configuraciones de Kedro y DVC
+1.  Carga de datos (load_data)
+2.  Preprocesamiento (clean_data)
+3.  Generación de modelos (train_models)
+4.  Exportación (save_results)
+5.  Visualización (plot_clusters)
 
-  ├─ logs/ # Logs de ejecución
+Toda la ejecución está orquestada en Airflow sin exponer credenciales.
 
-  └─ README.md
+------------------------------------------------------------------------
 
+5. DAG de Airflow (sin credenciales)
 
----
+    from airflow import DAG
+    from airflow.operators.python import PythonOperator
+    from datetime import datetime
+    import pandas as pd
 
-## 🛠 Requisitos
+    def load_data():
+        pass  # Tu lógica aquí
 
-- Python >= 3.10
-- Kedro >= 0.19
-- Pandas, NumPy, scikit-learn, matplotlib, seaborn
-- DVC >= 2.0 (opcional, para versionamiento)
-- Docker (opcional, para contenerización)
-- Apache Airflow (opcional, para orquestación)
+    def preprocess():
+        pass
 
----
+    def clustering():
+        pass
 
-## ⚡ Instalación
+    def save_outputs():
+        pass
 
-1. Clonar el repositorio:
+    with DAG(
+        dag_id="pipeline_clustering",
+        start_date=datetime(2025, 1, 1),
+        schedule_interval="@daily",
+        catchup=False
+    ):
+        t1 = PythonOperator(task_id="load_data", python_callable=load_data)
+        t2 = PythonOperator(task_id="preprocess", python_callable=preprocess)
+        t3 = PythonOperator(task_id="clustering", python_callable=clustering)
+        t4 = PythonOperator(task_id="save_outputs", python_callable=save_outputs)
 
-```bash
-git clone https://github.com/HansIgnaci0/covid19DF_Ev02.git
-cd covid19DF
-````
-2.-Activar entorno virtual:
-```bash
-covid19DF_Ev02-main\covid19DF_Ev02-main\covid19df
-.\venv_kedro\Scripts\activate.ps1         # Windows
-````
-3.- Instalar las dependencias
-```bash
-pip install -r requirements.txt
-````
-4.- Inicializar DVC
-```bash
-dvc init
-dvc repro
-````
+        t1 >> t2 >> t3 >> t4
 
-Regresión
+------------------------------------------------------------------------
 
-Predice variables continuas relacionadas con la evolución del COVID-19.
+6. Consideraciones Finales
 
-Clasificación
+-   Los modelos no supervisados no requieren una variable objetivo, por
+    eso se llaman “no supervisados”.
+-   El objetivo de la evaluación es demostrar correcto uso de:
+    -   Técnicas de clustering
+    -   Gráficos comparativos
+    -   Automatización del flujo
+-   Si los clusters se ven iguales, probablemente es resultado natural
+    de los datos.
 
-Clasifica registros según criterios definidos en el dataset.
+------------------------------------------------------------------------
 
-Agrupamiento
+7. Entregables Sugeridos
 
-Agrupa datos para identificar patrones y clusters relevantes.
-
-Ejecutar un pipeline:
-
-```bash
-kedro run --pipeline clasificacion
-````
-🚀 Uso
-
-Ejecuta pipelines completos con:
-```bash
-kedro run
-````
-
-📊 Resultados y Conclusiones
-
-La arquitectura modular permite ejecutar, depurar y escalar cada pipeline de manera independiente.
-
-Los pipelines muestran que Kedro + DVC es muy útil para reproducibilidad y control de versiones de datos y modelos.
-
-Gracias a la separación entre regresión, clasificación y clustering, se facilita la comparación de técnicas y algoritmos sobre el mismo dataset.
-
-Este proyecto sirve como base para proyectos MLOps completos, donde los pipelines pueden integrarse con Airflow para orquestación y Docker para despliegue.
-
-💡 Buenas prácticas
-
-Mantener los datos crudos en data/raw/ y procesados en data/processed/.
-
-Documentar cambios en pipelines y nodos para facilitar colaboraciones.
-
-Usar .gitkeep en carpetas vacías si es necesario mantener la estructura.
-
-Versionar modelos y datasets con DVC para asegurar reproducibilidad.
-
-🤝 Contribuciones
-
-Fork del repositorio.
-
-Crear rama feature: git checkout -b feature/nueva-funcionalidad.
-
-Commit y push:
-```bash
-git commit -am "Agrego nueva funcionalidad"
-git push origin feature/nueva-funcionalidad
-````
-
-Desarollador del proyecto: Hans Ignacio Mancilla Sandoval
-
-Contacto: ha.mancilla@duocuc.cl
-
-Asignatura: Machine Learning
-
-Profesor: Giocrisrai Godoy
+-   Informe PDF o Markdown
+-   Código en Jupyter o Python scripts
+-   CSV final con etiquetas
+-   Gráficos PNG/JPG
+-   DAG de Airflow
